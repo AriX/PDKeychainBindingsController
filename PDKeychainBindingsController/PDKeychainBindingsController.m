@@ -55,7 +55,7 @@ static PDKeychainBindingsController *sharedInstance = nil;
     CFRelease(stringData);
 #else //OSX
     NSString *string = [[[NSString alloc] initWithBytes:stringBuffer length:stringLength encoding:NSUTF8StringEncoding] autorelease];
-    SecKeychainItemFreeAttributesAndData(NULL, stringBuffer);
+    SecKeychainItemFreeContent(NULL, stringBuffer);
 #endif
 	return string;	
 }
@@ -126,11 +126,11 @@ static PDKeychainBindingsController *sharedInstance = nil;
 {
 	@synchronized (self) {
 		if (sharedInstance == nil) {
-			__unused id unused = [[self alloc] init]; // assignment not done here, see allocWithZone
+			sharedInstance = [[self alloc] init];
 		}
 	}
 	
-	return sharedInstance;   
+	return sharedInstance;
 }
 
 + (id)allocWithZone:(NSZone *)zone
@@ -173,7 +173,7 @@ static PDKeychainBindingsController *sharedInstance = nil;
 - (id)init
 {
 	@synchronized(self) {
-		[super init];	
+		self = [super init];
 		return self;
 	}
 }
