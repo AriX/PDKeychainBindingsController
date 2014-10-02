@@ -25,12 +25,14 @@ static PDKeychainBindingsController *sharedInstance = nil;
 #pragma mark -
 #pragma mark Keychain Access
 
-- (NSString*)serviceName {
-	return [[NSBundle mainBundle] bundleIdentifier];
+- (NSString *)serviceName {
+    if (!_serviceName)
+        _serviceName = [[[NSBundle mainBundle] bundleIdentifier] copy];
+    
+    return _serviceName;
 }
 
-- (NSString*)stringForKey:(NSString*)key {
-	OSStatus status;
+- (NSString *)stringForKey:(NSString *)key {
 #if TARGET_OS_IPHONE
     NSDictionary *query = [NSDictionary dictionaryWithObjectsAndKeys:(id)kCFBooleanTrue, kSecReturnData,
                            kSecClassGenericPassword, kSecClass,
@@ -39,16 +41,18 @@ static PDKeychainBindingsController *sharedInstance = nil;
                            nil];
 	
     CFDataRef stringData = NULL;
-    status = SecItemCopyMatching((CFDictionaryRef)query, (CFTypeRef*)&stringData);
+    OSStatus status = SecItemCopyMatching((CFDictionaryRef)query, (CFTypeRef*)&stringData);
 #else //OSX
     //SecKeychainItemRef item = NULL;
     UInt32 stringLength;
     void *stringBuffer;
-    status = SecKeychainFindGenericPassword(NULL, (uint) [[self serviceName] lengthOfBytesUsingEncoding:NSUTF8StringEncoding], [[self serviceName] UTF8String],
+    OSStatus status = SecKeychainFindGenericPassword(NULL, (uint) [[self serviceName] lengthOfBytesUsingEncoding:NSUTF8StringEncoding], [[self serviceName] UTF8String],
                                             (uint) [key lengthOfBytesUsingEncoding:NSUTF8StringEncoding], [key UTF8String],
                                             &stringLength, &stringBuffer, NULL);
-    #endif
-	if(status) return nil;
+#endif
+    
+	if (status)
+        return nil;
 	
 #if TARGET_OS_IPHONE
     NSString *string = [[[NSString alloc] initWithData:(id)stringData encoding:NSUTF8StringEncoding] autorelease];
@@ -57,6 +61,7 @@ static PDKeychainBindingsController *sharedInstance = nil;
     NSString *string = [[[NSString alloc] initWithBytes:stringBuffer length:stringLength encoding:NSUTF8StringEncoding] autorelease];
     SecKeychainItemFreeContent(NULL, stringBuffer);
 #endif
+    
 	return string;	
 }
 
@@ -65,8 +70,12 @@ static PDKeychainBindingsController *sharedInstance = nil;
 	if (!string)  {
 		//Need to delete the Key 
 #if TARGET_OS_IPHONE
-        NSDictionary *spec = [NSDictionary dictionaryWithObjectsAndKeys:(id)kSecClassGenericPassword, kSecClass,
-                              key, kSecAttrAccount,[self serviceName], kSecAttrService, nil];
+        NSDictionary *spec = [NSDictionary dictionaryWithObjectsAndKeys:
+                              (id)kSecClassGenericPassword, kSecClass,
+                              key, kSecAttrAccount,
+                              [self serviceName], kSecAttrService,
+                              [self accessGroup], kSecAttrAccessGroup, // May be nil
+                              nil];
         
         return !SecItemDelete((CFDictionaryRef)spec);
 #else //OSX
@@ -81,15 +90,19 @@ static PDKeychainBindingsController *sharedInstance = nil;
     } else {
 #if TARGET_OS_IPHONE
         NSData *stringData = [string dataUsingEncoding:NSUTF8StringEncoding];
-        NSDictionary *spec = [NSDictionary dictionaryWithObjectsAndKeys:(id)kSecClassGenericPassword, kSecClass,
-                              key, kSecAttrAccount,[self serviceName], kSecAttrService, nil];
+        NSDictionary *spec = [NSDictionary dictionaryWithObjectsAndKeys:
+                              (id)kSecClassGenericPassword, kSecClass,
+                              key, kSecAttrAccount,
+                              [self serviceName], kSecAttrService,
+                              [self accessGroup], kSecAttrAccessGroup, // May be nil
+                              nil];
         
-        if(!string) {
+        if (!string) {
             return !SecItemDelete((CFDictionaryRef)spec);
-        }else if([self stringForKey:key]) {
+        } else if ([self stringForKey:key]) {
             NSDictionary *update = [NSDictionary dictionaryWithObject:stringData forKey:(id)kSecValueData];
             return !SecItemUpdate((CFDictionaryRef)spec, (CFDictionaryRef)update);
-        }else{
+        } else {
             NSMutableDictionary *data = [NSMutableDictionary dictionaryWithDictionary:spec];
             [data setObject:stringData forKey:(id)kSecValueData];
             return !SecItemAdd((CFDictionaryRef)data, NULL);

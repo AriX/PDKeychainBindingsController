@@ -24,5 +24,8 @@
 - (NSString*)stringForKey:(NSString*)key;
 - (BOOL)storeString:(NSString*)string forKey:(NSString*)key;
 
+@property (nonatomic, copy) NSString *serviceName;
+@property (nonatomic, copy) NSString *accessGroup;
+
 @end
 
