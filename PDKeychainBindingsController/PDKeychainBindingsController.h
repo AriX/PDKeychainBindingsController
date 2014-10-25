@@ -27,5 +27,7 @@
 @property (nonatomic, copy) NSString *serviceName;
 @property (nonatomic, copy) NSString *accessGroup;
 
+- (BOOL)performBackgroundAccessibilityMigrationWithError:(NSError **)error;
+
 @end
 

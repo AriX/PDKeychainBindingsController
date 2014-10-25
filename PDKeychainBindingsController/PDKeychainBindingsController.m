@@ -25,6 +25,41 @@ static PDKeychainBindingsController *sharedInstance = nil;
 #pragma mark -
 #pragma mark Keychain Access
 
+- (BOOL)performBackgroundAccessibilityMigrationWithError:(NSError **)error {
+#if TARGET_OS_IPHONE
+    NSDictionary *query = [NSDictionary dictionaryWithObjectsAndKeys:
+                           kSecMatchLimitAll, kSecMatchLimit,
+                           (id)kCFBooleanTrue, kSecReturnAttributes,
+                           kSecClassGenericPassword, kSecClass,
+                           [self serviceName], kSecAttrService,
+                           kSecAttrAccessibleWhenUnlocked, kSecAttrAccessible,
+                           nil];
+    
+    NSArray *results = nil;
+    SecItemCopyMatching((CFDictionaryRef)query, (CFTypeRef *)&results);
+    
+    for (NSDictionary *keychainItem in results) {
+        NSDictionary *selector = @{(id)kSecClass: (id)kSecClassGenericPassword,
+                                   (id)kSecAttrAccount: [keychainItem objectForKey:(id)kSecAttrAccount],
+                                   (id)kSecAttrService: [keychainItem objectForKey:(id)kSecAttrService]};
+        
+        NSDictionary *update = @{(id)kSecAttrAccessible: (id)kSecAttrAccessibleAfterFirstUnlock};
+        OSStatus migrationResult = SecItemUpdate((CFDictionaryRef)selector, (CFDictionaryRef)update);
+        
+        if (migrationResult != noErr && error)
+            *error = [NSError errorWithDomain:NSOSStatusErrorDomain code:migrationResult userInfo:nil];
+    }
+    
+    BOOL migrationPerformed = !![results count];
+    
+    [results release];
+    
+    return migrationPerformed;
+#else
+    return NO;
+#endif
+}
+
 - (NSString *)serviceName {
     if (!_serviceName)
         _serviceName = [[[NSBundle mainBundle] bundleIdentifier] copy];
@@ -34,7 +69,8 @@ static PDKeychainBindingsController *sharedInstance = nil;
 
 - (NSString *)stringForKey:(NSString *)key {
 #if TARGET_OS_IPHONE
-    NSDictionary *query = [NSDictionary dictionaryWithObjectsAndKeys:(id)kCFBooleanTrue, kSecReturnData,
+    NSDictionary *query = [NSDictionary dictionaryWithObjectsAndKeys:
+                           (id)kCFBooleanTrue, kSecReturnData,
                            kSecClassGenericPassword, kSecClass,
                            key, kSecAttrAccount,
                            [self serviceName], kSecAttrService,
@@ -93,6 +129,7 @@ static PDKeychainBindingsController *sharedInstance = nil;
         NSDictionary *spec = [NSDictionary dictionaryWithObjectsAndKeys:
                               (id)kSecClassGenericPassword, kSecClass,
                               key, kSecAttrAccount,
+                              kSecAttrAccessibleAfterFirstUnlock, kSecAttrAccessible,
                               [self serviceName], kSecAttrService,
                               [self accessGroup], kSecAttrAccessGroup, // May be nil
                               nil];
