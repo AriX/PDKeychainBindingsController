@@ -14,6 +14,8 @@
 @private
     PDKeychainBindings *_keychainBindings;
     NSMutableDictionary *_valueBuffer;
+    NSString *_serviceName;
+    NSString *_accessGroup;
 }
 
 + (PDKeychainBindingsController *)sharedKeychainBindingsController;

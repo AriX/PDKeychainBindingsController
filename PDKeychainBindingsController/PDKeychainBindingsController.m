@@ -22,13 +22,16 @@ static PDKeychainBindingsController *sharedInstance = nil;
 
 @implementation PDKeychainBindingsController
 
+@synthesize serviceName = _serviceName;
+@synthesize accessGroup = _accessGroup;
+
 #pragma mark -
 #pragma mark Keychain Access
 
 - (BOOL)performBackgroundAccessibilityMigrationWithError:(NSError **)error {
 #if TARGET_OS_IPHONE
     NSDictionary *query = [NSDictionary dictionaryWithObjectsAndKeys:
-                           kSecMatchLimitAll, kSecMatchLimit,
+                           (id)kSecMatchLimitAll, kSecMatchLimit,
                            (id)kCFBooleanTrue, kSecReturnAttributes,
                            kSecClassGenericPassword, kSecClass,
                            [self serviceName], kSecAttrService,
@@ -129,7 +132,6 @@ static PDKeychainBindingsController *sharedInstance = nil;
         NSDictionary *spec = [NSDictionary dictionaryWithObjectsAndKeys:
                               (id)kSecClassGenericPassword, kSecClass,
                               key, kSecAttrAccount,
-                              kSecAttrAccessibleAfterFirstUnlock, kSecAttrAccessible,
                               [self serviceName], kSecAttrService,
                               [self accessGroup], kSecAttrAccessGroup, // May be nil
                               nil];
@@ -142,6 +144,7 @@ static PDKeychainBindingsController *sharedInstance = nil;
         } else {
             NSMutableDictionary *data = [NSMutableDictionary dictionaryWithDictionary:spec];
             [data setObject:stringData forKey:(id)kSecValueData];
+            [data setObject:(id)kSecAttrAccessibleAfterFirstUnlock forKey:(id)kSecAttrAccessible];
             return !SecItemAdd((CFDictionaryRef)data, NULL);
         }
 #else //OSX
