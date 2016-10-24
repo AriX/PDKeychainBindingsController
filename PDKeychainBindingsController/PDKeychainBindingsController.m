@@ -231,6 +231,13 @@ static PDKeychainBindingsController *sharedInstance = nil;
 	}
 }
 
+- (void)dealloc {
+    [_serviceName release];
+    [_accessGroup release];
+    
+    [super dealloc];
+}
+
 #pragma mark -
 #pragma mark Business Logic
 
